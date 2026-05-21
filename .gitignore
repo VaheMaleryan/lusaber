@@ -1,0 +1,32 @@
+# ── Python ────────────────────────────────────────────────────────────────
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# ── Project artefacts (large or sensitive) ────────────────────────────────
+*.db
+*.log
+training.log
+models/checkpoints/
+data/liar_translated_checkpoint.csv
+data/_demo_tmp/
+
+# ── Secrets / env ─────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Node / Vite ───────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── macOS / IDE noise ─────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+
+# ── Claude Code runtime state ─────────────────────────────────────────────
+.claude/scheduled_tasks.lock
