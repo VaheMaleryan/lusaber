@@ -1,0 +1,72 @@
+/* Lusaber · Լուսաբեր — Tailwind layers + a few global rules. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    /* Avoid the iOS auto-zoom on input focus by ensuring base font ≥ 16px. */
+    font-size: 16px;
+  }
+
+  /* Print-style headings — only for our explicit serif pages, not all <h*> */
+  .serif {
+    @apply font-serif text-ink;
+  }
+}
+
+@layer components {
+  /* Card primitive — white surface with a hairline editorial border. */
+  .card {
+    @apply rounded-md border border-paper-border bg-paper-card;
+  }
+
+  /* Form labels (small caps, muted). */
+  .field-label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-verdict text-ink-muted;
+  }
+
+  /* Plain text input + textarea baseline. */
+  .field {
+    @apply w-full rounded-md border border-paper-border bg-paper-card
+           px-3 py-2 text-[15px] text-ink placeholder:text-ink-muted/70
+           focus:border-armenian-red focus:outline-none focus:ring-2
+           focus:ring-armenian-red/15;
+  }
+
+  /* Primary action button. */
+  .btn-primary {
+    @apply inline-flex w-full items-center justify-center rounded-md
+           bg-ink px-4 py-2.5 text-sm font-medium text-white
+           transition-colors duration-button
+           hover:bg-armenian-red focus:outline-none focus:ring-2
+           focus:ring-armenian-red/30 disabled:cursor-not-allowed
+           disabled:opacity-60;
+  }
+
+  /* Inline status badge (used in header + source-verdict labels). */
+  .badge {
+    @apply inline-flex items-center rounded-full border border-paper-border
+           bg-paper px-2.5 py-0.5 font-mono text-[11px] uppercase
+           tracking-verdict text-ink-muted;
+  }
+}
+
+/* Skeleton pulse — a slow, restrained shimmer for the loading state. */
+@keyframes lusaber-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.skeleton {
+  animation: lusaber-pulse 1.4s ease-in-out infinite;
+  background-color: #F1EFEA;
+  border-radius: 6px;
+}

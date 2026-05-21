@@ -1,0 +1,51 @@
+{
+  "_meta": {
+    "name": "Lusaber fake-domains registry",
+    "description": "Known Armenian-targeted disinformation domains. Each entry is a documented fake outlet identified by Armenian fact-checkers (CivilNetCheck, media.am, InFact) or by Microsoft Threat Analysis Center reporting on Storm-1516. New entries should be added only with a citation in the `source` field. The single placeholder entry below illustrates the schema and should be replaced once real CivilNet investigations are ingested in data/labeler.py.",
+    "schema": {
+      "domain": "string — bare domain (no scheme, no path)",
+      "mimics": "string — real outlet the fake is impersonating",
+      "first_seen": "string — YYYY-MM",
+      "source": "string — attribution (URL or short citation)"
+    },
+    "last_updated": "2026-05"
+  },
+  "domains": [
+    {
+      "domain": "armenpress-news.com",
+      "mimics": "armenpress.am",
+      "first_seen": "2024-03",
+      "source": "CivilNetCheck investigation — fake Armenpress clone"
+    },
+    {
+      "domain": "azatutyun-news.com",
+      "mimics": "azatutyun.am",
+      "first_seen": "2024-06",
+      "source": "media.am fact-check — fake Azatutyun clone"
+    },
+    {
+      "domain": "courrier-france24.com",
+      "mimics": "france24.com",
+      "first_seen": "2023-11",
+      "source": "Storm-1516 / MTAC reporting — France24 impersonator"
+    },
+    {
+      "domain": "reuters-breaking.net",
+      "mimics": "reuters.com",
+      "first_seen": "2024-01",
+      "source": "InFact Armenia — fake Reuters domain"
+    },
+    {
+      "domain": "bbc-armenian.net",
+      "mimics": "bbc.com",
+      "first_seen": "2024-08",
+      "source": "CivilNetCheck — fake BBC Armenian site"
+    },
+    {
+      "domain": "bloomberg-armenia.com",
+      "mimics": "bloomberg.com",
+      "first_seen": "2025-02",
+      "source": "Storm-1516 campaign — Bloomberg impersonator targeting Armenia"
+    }
+  ]
+}

@@ -1,0 +1,281 @@
+# Lusaber · Լուսաբեր — verified Armenian public figures & institutions.
+#
+# Used by models.features.FeatureExtractor to compute
+# ``verified_entity_ratio`` and ``fabricated_quote_flag``.
+#
+# Each entry has:
+#   names:    list of surface forms (Armenian + transliteration), case-sensitive
+#             substring-matched against spaCy NER output, then normalized.
+#   category: one of {politician, government, judiciary, civil-society,
+#                     media, academia, security}
+#   note:     short freeform note for auditing.
+#
+# Maintained by hand — refresh quarterly. As of 2026-05.
+
+people:
+
+  - names: ["Նիկոլ Փաշինյան", "Փաշինյան", "Nikol Pashinyan", "Pashinyan"]
+    category: politician
+    note: Prime Minister of Armenia.
+
+  - names: ["Արարատ Միրզոյան", "Միրզոյան", "Ararat Mirzoyan", "Mirzoyan"]
+    category: politician
+    note: Minister of Foreign Affairs.
+
+  - names: ["Սուրեն Պապիկյան", "Պապիկյան", "Suren Papikyan"]
+    category: politician
+    note: Minister of Defense.
+
+  - names: ["Վահագն Խաչատուրյան", "Խաչատուրյան", "Vahagn Khachaturyan"]
+    category: politician
+    note: President of the Republic of Armenia.
+
+  - names: ["Ալեն Սիմոնյան", "Սիմոնյան", "Alen Simonyan"]
+    category: politician
+    note: Speaker of the National Assembly.
+
+  - names: ["Տիգրան Ավինյան", "Ավինյան", "Tigran Avinyan"]
+    category: politician
+    note: Mayor of Yerevan.
+
+  - names: ["Աննա Հակոբյան", "Hakobyan, Anna", "Anna Hakobyan"]
+    category: civil-society
+    note: Civic activist, founder of My Step Foundation.
+
+  - names: ["Արսեն Թորոսյան", "Թորոսյան", "Arsen Torosyan"]
+    category: politician
+    note: Member of parliament, former health minister.
+
+  - names: ["Մհեր Գրիգորյան", "Գրիգորյան", "Mher Grigoryan"]
+    category: politician
+    note: Deputy Prime Minister.
+
+  - names: ["Արման Թաթոյան", "Թաթոյան", "Arman Tatoyan"]
+    category: civil-society
+    note: Former Human Rights Defender; legal scholar.
+
+  - names: ["Կարեն Անդրեասյան", "Անդրեասյան", "Karen Andreasyan"]
+    category: judiciary
+    note: Minister of Justice.
+
+  - names: ["Աշոտ Ղուլյան", "Ղուլյան"]
+    category: politician
+    note: Member of parliament.
+
+  - names: ["Արգիշտի Քյարամյան", "Քյարամյան"]
+    category: politician
+    note: Former chief of state revenue committee.
+
+  - names: ["Անդրանիկ Քոչարյան", "Քոչարյան, Անդրանիկ"]
+    category: politician
+    note: Chair of standing committee on defense (parliament).
+
+  - names: ["Արթուր Վանեցյան", "Վանեցյան"]
+    category: politician
+    note: Former NSS director, opposition figure.
+
+  - names: ["Գագիկ Ծառուկյան", "Ծառուկյան", "Gagik Tsarukyan"]
+    category: politician
+    note: Leader of Prosperous Armenia party (opposition).
+
+  - names: ["Արթուր Հովհաննիսյան"]
+    category: politician
+    note: Member of parliament.
+
+  - names: ["Աշոտ Փաշինյան"]
+    category: civil-society
+    note: Civil servant; included for disambiguation.
+
+  - names: ["Ռոբերտ Քոչարյան", "Քոչարյան", "Robert Kocharyan"]
+    category: politician
+    note: Former President of Armenia; opposition leader.
+
+  - names: ["Սերժ Սարգսյան", "Սարգսյան", "Serzh Sargsyan"]
+    category: politician
+    note: Former President of Armenia (2008–2018).
+
+  - names: ["Լևոն Տեր-Պետրոսյան", "Տեր-Պետրոսյան"]
+    category: politician
+    note: First President of Armenia.
+
+  - names: ["Կարո Փայլան", "Փայլան"]
+    category: civil-society
+    note: Armenian–Turkish journalist and activist.
+
+  - names: ["Մարիամ Փետրոսյան"]
+    category: academia
+    note: Novelist and cultural figure.
+
+  - names: ["Շահեն Հովհաննիսյան"]
+    category: civil-society
+    note: Journalist, CivilNet.
+
+  - names: ["Մարիա Թիթիզյան", "Titizian", "Maria Titizian"]
+    category: media
+    note: Editor-in-chief, CivilNet.
+
+  - names: ["Անուշ Մկրտչյան"]
+    category: media
+    note: Journalist, media.am.
+
+  - names: ["Գեղամ Վարդանյան"]
+    category: media
+    note: Director, Media Initiatives Center / media.am.
+
+institutions:
+
+  - names: ["Հայաստանի Հանրապետություն", "Republic of Armenia"]
+    category: government
+    note: Country / state.
+
+  - names: ["Ազգային ժողով", "National Assembly"]
+    category: government
+    note: Parliament of Armenia.
+
+  - names: ["Կառավարություն", "Government of Armenia"]
+    category: government
+    note: Executive branch.
+
+  - names: ["Արտաքին գործերի նախարարություն", "MFA Armenia", "Ministry of Foreign Affairs of Armenia"]
+    category: government
+    note: MFA.
+
+  - names: ["Պաշտպանության նախարարություն", "Ministry of Defense of Armenia"]
+    category: government
+    note: MoD.
+
+  - names: ["Ներքին գործերի նախարարություն", "Ministry of Internal Affairs"]
+    category: government
+    note: MIA.
+
+  - names: ["Արդարադատության նախարարություն", "Ministry of Justice"]
+    category: government
+    note: MoJ.
+
+  - names: ["Ֆինանսների նախարարություն", "Ministry of Finance"]
+    category: government
+    note: MoF.
+
+  - names: ["Կրթության, գիտության, մշակույթի և սպորտի նախարարություն"]
+    category: government
+    note: Ministry of Education, Science, Culture, and Sport.
+
+  - names: ["Առողջապահության նախարարություն", "Ministry of Health"]
+    category: government
+    note: MoH.
+
+  - names: ["Կենտրոնական ընտրական հանձնաժողով", "ԿԸՀ", "Central Electoral Commission"]
+    category: government
+    note: CEC; especially relevant for 2026 elections.
+
+  - names: ["Սահմանադրական դատարան", "Constitutional Court"]
+    category: judiciary
+    note: Constitutional Court.
+
+  - names: ["Վճռաբեկ դատարան", "Court of Cassation"]
+    category: judiciary
+    note: Highest court of cassation.
+
+  - names: ["Գլխավոր դատախազություն", "Prosecutor General's Office"]
+    category: judiciary
+    note: Prosecutor general's office.
+
+  - names: ["Հակակոռուպցիոն կոմիտե", "Anti-Corruption Committee"]
+    category: judiciary
+    note: Anti-Corruption Committee.
+
+  - names: ["Քննչական կոմիտե", "Investigative Committee"]
+    category: judiciary
+    note: Investigative Committee of Armenia.
+
+  - names: ["Ազգային անվտանգության ծառայություն", "ԱԱԾ", "National Security Service", "NSS"]
+    category: security
+    note: NSS.
+
+  - names: ["Ոստիկանություն", "Armenian Police"]
+    category: security
+    note: National police.
+
+  - names: ["Կենտրոնական բանկ", "Central Bank of Armenia", "ՀՀ ԿԲ"]
+    category: government
+    note: Central bank.
+
+  - names: ["Մարդու իրավունքների պաշտպան", "Human Rights Defender"]
+    category: government
+    note: HRD / Ombudsperson.
+
+  - names: ["Հայաստանի ուսանողական միություն"]
+    category: civil-society
+    note: Armenian Students' Union.
+
+  - names: ["Քաղաքացիական պայմանագիր", "Civil Contract"]
+    category: politician
+    note: Ruling party.
+
+  - names: ["Հայաստան դաշինք", "Hayastan Alliance"]
+    category: politician
+    note: Opposition bloc.
+
+  - names: ["Պատիվ ունեմ", "I Have Honor"]
+    category: politician
+    note: Opposition bloc.
+
+  - names: ["Բարգավաճ Հայաստան", "Prosperous Armenia"]
+    category: politician
+    note: Opposition party.
+
+  - names: ["ՀՅԴ", "Հայ յեղափոխական դաշնակցություն", "ARF Dashnaktsutyun"]
+    category: politician
+    note: ARF.
+
+  - names: ["Հանրապետական կուսակցություն", "Republican Party of Armenia", "ՀՀԿ"]
+    category: politician
+    note: Former ruling party.
+
+  - names: ["Armenpress", "Արմենպրես"]
+    category: media
+    note: State news agency.
+
+  - names: ["CivilNet", "Սիվիլնեթ", "Civilnet"]
+    category: media
+    note: Independent media outlet.
+
+  - names: ["Ազատություն ռադիոկայան", "Azatutyun", "Azatutyun Radio", "Radio Liberty Armenia"]
+    category: media
+    note: RFE/RL Armenian Service.
+
+  - names: ["media.am", "Մեդիա.ամ", "Media Initiatives Center"]
+    category: media
+    note: Media literacy outlet.
+
+  - names: ["InFact", "ինֆակտ"]
+    category: media
+    note: Armenian fact-checking outlet.
+
+  - names: ["Հանրային հեռուստաընկերություն", "Public TV of Armenia"]
+    category: media
+    note: National public broadcaster.
+
+  - names: ["Արցախ", "Nagorno-Karabakh", "Artsakh"]
+    category: government
+    note: Historical / regional reference; treated as a verified geographical entity.
+
+  - names: ["ԵՄ", "European Union", "Եվրամիություն"]
+    category: government
+    note: External institution; frequently referenced.
+
+  - names: ["ՆԱՏՕ", "NATO"]
+    category: government
+    note: External institution.
+
+  - names: ["ՄԱԿ", "UN", "United Nations"]
+    category: government
+    note: External institution.
+
+  - names: ["ՀԱՊԿ", "CSTO"]
+    category: government
+    note: Regional security organization.
+
+  - names: ["ԵԱՏՄ", "EAEU", "Eurasian Economic Union"]
+    category: government
+    note: Regional economic union.

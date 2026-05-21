@@ -1,0 +1,32 @@
+# Lusaber · Լուսաբեր — Render deployment blueprint.
+#
+# This file is read by Render Blueprint deploys. Create the service via
+#   https://dashboard.render.com  →  New +  →  Blueprint
+# pointing at the GitHub repo, then set GROQ_API_KEY in the dashboard
+# (sync: false means it's *not* committed to source).
+#
+# Free-tier caveats:
+#   * Instance spins down after ~15 min idle; first request after a
+#     cold start adds ~30–60 s.
+#   * 512 MB RAM. The trained XLM-RoBERTa checkpoint is intentionally
+#     excluded from the repo via .gitignore — `TrainedModelScorer`
+#     fails to load on Render and the API falls back to
+#     `HeuristicScorer` automatically (see api/main.py lifespan).
+#
+services:
+  - type: web
+    name: lusaber-api
+    runtime: python
+    pythonVersion: "3.13"
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: LUSABER_DB
+        value: /tmp/lusaber.db
+      - key: LUSABER_CORS_ORIGINS
+        # Comma-separated list. Update once the gh-pages site is live.
+        value: "http://localhost:5173,https://vahemaleryan.github.io"

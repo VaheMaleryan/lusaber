@@ -1,0 +1,26 @@
+{
+  "name": "lusaber-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Lusaber · Լուսաբեր — Armenian disinformation detector (React + Vite + Tailwind)",
+  "homepage": "https://vahemaleryan.github.io/lusaber",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "gh-pages": "^6.3.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "vite": "^5.4.11"
+  }
+}
