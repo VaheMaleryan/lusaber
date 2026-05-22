@@ -18,6 +18,17 @@ import SourceCheck from "./SourceCheck.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// Per spec: amber at 3500, red at 4000, button disabled over 4000.
+const MAX_CHARS = 4000;
+const WARN_CHARS = 3500;
+
+// Auto-retry budgets per error class (in seconds).
+const RETRY_AFTER = {
+  unreachable: 3,
+  serviceUnavailable: 5,
+  rateLimit: 60, // fallback when no Retry-After header
+};
+
 // Stable opaque identifier for this browser session. Used by /feedback
 // to de-duplicate accidental double-clicks — no authentication, no PII.
 function getSessionId() {
@@ -68,22 +79,97 @@ const LANGUAGE_LABEL = {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-function ErrorBanner({ message, onDismiss }) {
-  if (!message) return null;
+/**
+ * Hook: shared countdown timer.
+ *
+ * Returns the number of whole seconds remaining; once it hits 0 the
+ * `onZero` callback fires exactly once. Pass `seconds=0` (or omit) to
+ * keep the timer dormant.
+ */
+function useCountdown(seconds, onZero) {
+  const [remaining, setRemaining] = useState(seconds);
+  useEffect(() => {
+    setRemaining(seconds);
+    if (!seconds) return undefined;
+    const start = Date.now();
+    const id = setInterval(() => {
+      const left = Math.max(0, Math.ceil(seconds - (Date.now() - start) / 1000));
+      setRemaining(left);
+      if (left === 0) {
+        clearInterval(id);
+        onZero?.();
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [seconds, onZero]);
+  return remaining;
+}
+
+/**
+ * Structured error banner.
+ *
+ *   errorState = {
+ *     type: "unreachable" | "rateLimit" | "serviceUnavailable" | "unknown",
+ *     message: string,
+ *     retryInSeconds?: number,    // drives the countdown
+ *   }
+ */
+function ErrorBanner({ errorState, onRetry, onDismiss }) {
+  const remaining = useCountdown(
+    errorState?.retryInSeconds || 0,
+    () => onRetry?.()
+  );
+  if (!errorState) return null;
+
+  const { type, message } = errorState;
+  const showCountdown =
+    (type === "rateLimit" || type === "unreachable" || type === "serviceUnavailable") &&
+    remaining > 0;
+
   return (
     <div
       role="alert"
       className="mb-3 flex items-start justify-between gap-3 rounded-md border border-[#F1C5C5] bg-[#FCEBEB] px-3 py-2 text-[13px] text-[#991B1B]"
     >
-      <span>{message}</span>
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="text-[#991B1B]/70 hover:text-[#991B1B]"
-        aria-label="Dismiss error"
-      >
-        ×
-      </button>
+      <div className="flex-1">
+        <p>{message}</p>
+        {showCountdown && (
+          <p className="mt-1 font-mono text-[12px] text-[#991B1B]/80">
+            Retrying in {remaining}s…
+          </p>
+        )}
+        {type === "unknown" && (
+          <p className="mt-1 text-[12px]">
+            <a
+              href="https://github.com/VaheMaleryan/lusaber/issues/new"
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-[#991B1B]"
+            >
+              Report issue ↗
+            </a>
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {onRetry && !showCountdown && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-full border border-[#991B1B]/30 px-2.5 py-0.5 text-[12px] font-medium text-[#991B1B] hover:bg-[#FBE0E0]"
+          >
+            Retry
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-[#991B1B]/70 hover:text-[#991B1B]"
+          aria-label="Dismiss error"
+        >
+          ×
+        </button>
+      </div>
     </div>
   );
 }
@@ -479,7 +565,12 @@ export default function Summarizer() {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [error, setError] = useState("");
+
+  // Two error tracks:
+  //   * `errorState` — structured banner above the form (API errors)
+  //   * `inlineError` — short message under the textarea (validation)
+  const [errorState, setErrorState] = useState(null);
+  const [inlineError, setInlineError] = useState("");
 
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [examples, setExamples] = useState([]);
@@ -498,63 +589,105 @@ export default function Summarizer() {
       });
   }, [examplesOpen, examples.length]);
 
+  const runSummarize = useCallback(async () => {
+    setErrorState(null);
+    setInlineError("");
+    if (!text.trim()) {
+      setInlineError("Paste an article body to summarize.");
+      return;
+    }
+    if (text.length > MAX_CHARS) {
+      setInlineError(`Text is ${text.length} chars — please trim to ${MAX_CHARS} or fewer.`);
+      return;
+    }
+    const payload = { text: text.trim() };
+    if (url.trim()) payload.url = url.trim();
+    if (title.trim()) payload.title = title.trim();
+
+    setLoading(true);
+    setResult(null);
+    try {
+      const resp = await fetch(`${API_BASE}/summarize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (resp.status === 503) {
+        setErrorState({
+          type: "serviceUnavailable",
+          message: "Lusaber summarizer is temporarily unavailable.",
+          retryInSeconds: RETRY_AFTER.serviceUnavailable,
+        });
+        return;
+      }
+      if (resp.status === 429) {
+        // Prefer the server's Retry-After header if present.
+        const raw = resp.headers.get("Retry-After");
+        const wait = Math.max(1, parseInt(raw, 10) || RETRY_AFTER.rateLimit);
+        setErrorState({
+          type: "rateLimit",
+          message: `Rate limit exceeded (10 req/min). Try again in ${wait}s.`,
+          retryInSeconds: wait,
+        });
+        return;
+      }
+      if (!resp.ok) {
+        const detail = await resp.text();
+        setErrorState({
+          type: "unknown",
+          message: `Something went wrong — API returned ${resp.status}. ${
+            detail ? detail.slice(0, 160) : ""
+          }`,
+        });
+        return;
+      }
+      setResult(await resp.json());
+    } catch (err) {
+      // Network failure / CORS / DNS — treat as unreachable.
+      setErrorState({
+        type: "unreachable",
+        message:
+          "Cannot reach the Lusaber API. Will retry shortly — or start a local one with: " +
+          "uvicorn api.main:app --reload --port 8000",
+        retryInSeconds: RETRY_AFTER.unreachable,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [text, url, title]);
+
   const onSubmit = useCallback(
     async (e) => {
       e?.preventDefault?.();
-      setError("");
-      if (!text.trim()) {
-        setError("Paste an article body to summarize.");
-        return;
-      }
-      const payload = { text: text.trim() };
-      if (url.trim()) payload.url = url.trim();
-      if (title.trim()) payload.title = title.trim();
-
-      setLoading(true);
-      setResult(null);
-      try {
-        const resp = await fetch(`${API_BASE}/summarize`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (resp.status === 503) {
-          setError(
-            "Lusaber summarizer is offline — ANTHROPIC_API_KEY is not set on the server."
-          );
-          return;
-        }
-        if (resp.status === 429) {
-          setError(
-            "Rate limit exceeded (10 req/min). Wait a moment and retry."
-          );
-          return;
-        }
-        if (!resp.ok) {
-          const detail = await resp.text();
-          setError(
-            `API returned ${resp.status}: ${detail.slice(0, 200) || "unknown"}`
-          );
-          return;
-        }
-        setResult(await resp.json());
-      } catch (err) {
-        setError(
-          "Cannot reach the Lusaber API. Start it with: " +
-            "uvicorn api.main:app --reload --port 8000"
-        );
-      } finally {
-        setLoading(false);
-      }
+      await runSummarize();
     },
-    [text, url, title]
+    [runSummarize]
   );
+
+  // Paste-from-clipboard button. Falls back gracefully if the browser
+  // blocks the read permission (Firefox without prompt acceptance, etc.).
+  const onPaste = useCallback(async () => {
+    setInlineError("");
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t) setText(t);
+      else setInlineError("Clipboard is empty.");
+    } catch {
+      setInlineError("Could not read clipboard — paste manually with ⌘V / Ctrl-V.");
+    }
+  }, []);
+
+  const onClear = useCallback(() => {
+    setText("");
+    setInlineError("");
+  }, []);
 
   const fillExample = useCallback((ex) => {
     setText(ex.body);
     setUrl(ex.url || "");
     setTitle(ex.title || "");
-    setError("");
+    setErrorState(null);
+    setInlineError("");
   }, []);
 
   return (
@@ -563,20 +696,77 @@ export default function Summarizer() {
       <section>
         <h2 className="serif mb-5 text-[18px]">Summarize article</h2>
 
-        <ErrorBanner message={error} onDismiss={() => setError("")} />
+        <ErrorBanner
+          errorState={errorState}
+          onRetry={() => runSummarize()}
+          onDismiss={() => setErrorState(null)}
+        />
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="field-label" htmlFor="sum-text">
-              Article text
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="field-label !mb-0" htmlFor="sum-text">
+                Article text
+              </label>
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <button
+                  type="button"
+                  onClick={onPaste}
+                  className="rounded-full border border-paper-border bg-paper-card px-2 py-0.5 uppercase tracking-verdict text-ink-muted transition-colors duration-button hover:border-armenian-red hover:text-ink"
+                  title="Paste from clipboard"
+                >
+                  📋 Paste
+                </button>
+                {text && (
+                  <button
+                    type="button"
+                    onClick={onClear}
+                    className="rounded-full border border-paper-border bg-paper-card px-2 py-0.5 uppercase tracking-verdict text-ink-muted transition-colors duration-button hover:border-armenian-red hover:text-ink"
+                    title="Clear text"
+                  >
+                    × Clear
+                  </button>
+                )}
+              </div>
+            </div>
             <textarea
               id="sum-text"
               className="field min-h-[220px] resize-y leading-relaxed"
               placeholder="Տեղադրեք հայերեն հոդվածի տեքստը..."
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                if (inlineError) setInlineError("");
+              }}
+              style={{
+                borderColor: inlineError
+                  ? "#991B1B"
+                  : text.length > MAX_CHARS
+                  ? "#991B1B"
+                  : undefined,
+              }}
+              aria-invalid={!!inlineError}
+              aria-describedby="sum-text-counter sum-text-error"
             />
+            <div className="mt-1 flex items-center justify-between text-[11px]">
+              <span id="sum-text-error" className="text-[#991B1B]">
+                {inlineError}
+              </span>
+              <span
+                id="sum-text-counter"
+                className="font-mono tabular-nums"
+                style={{
+                  color:
+                    text.length > MAX_CHARS
+                      ? "#991B1B"
+                      : text.length >= WARN_CHARS
+                      ? "#B45309"
+                      : "#6B6860",
+                }}
+              >
+                {text.length.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+              </span>
+            </div>
           </div>
 
           <div>
@@ -609,7 +799,11 @@ export default function Summarizer() {
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={loading || text.length > MAX_CHARS}
+          >
             {loading ? "Summarizing…" : "Ամփոփել · Summarize"}
           </button>
 
