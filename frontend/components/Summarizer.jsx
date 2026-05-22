@@ -15,6 +15,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import SourceCheck from "./SourceCheck.jsx";
+import { friendlyError, safeReadBody } from "../lib/friendlyError.js";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -613,9 +614,10 @@ export default function Summarizer() {
         body: JSON.stringify(payload),
       });
       if (resp.status === 503) {
+        const body = await safeReadBody(resp);
         setErrorState({
           type: "serviceUnavailable",
-          message: "Lusaber summarizer is temporarily unavailable.",
+          message: friendlyError(503, body),
           retryInSeconds: RETRY_AFTER.serviceUnavailable,
         });
         return;
@@ -626,18 +628,16 @@ export default function Summarizer() {
         const wait = Math.max(1, parseInt(raw, 10) || RETRY_AFTER.rateLimit);
         setErrorState({
           type: "rateLimit",
-          message: `Rate limit exceeded (10 req/min). Try again in ${wait}s.`,
+          message: `Too many requests — please wait ${wait}s before trying again.`,
           retryInSeconds: wait,
         });
         return;
       }
       if (!resp.ok) {
-        const detail = await resp.text();
+        const body = await safeReadBody(resp);
         setErrorState({
           type: "unknown",
-          message: `Something went wrong — API returned ${resp.status}. ${
-            detail ? detail.slice(0, 160) : ""
-          }`,
+          message: friendlyError(resp.status, body),
         });
         return;
       }
@@ -646,9 +646,7 @@ export default function Summarizer() {
       // Network failure / CORS / DNS — treat as unreachable.
       setErrorState({
         type: "unreachable",
-        message:
-          "Cannot reach the Lusaber API. Will retry shortly — or start a local one with: " +
-          "uvicorn api.main:app --reload --port 8000",
+        message: "We couldn't reach the Lusaber server. Retrying automatically.",
         retryInSeconds: RETRY_AFTER.unreachable,
       });
     } finally {

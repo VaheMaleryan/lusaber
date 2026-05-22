@@ -18,6 +18,7 @@
 import React, { useCallback, useState } from "react";
 import Summarizer from "./components/Summarizer.jsx";
 import SourceCheck from "./components/SourceCheck.jsx";
+import { friendlyError, safeReadBody } from "./lib/friendlyError.js";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -99,18 +100,15 @@ function SourceCheckTab() {
           body: JSON.stringify({ url: url.trim() }),
         });
         if (!resp.ok) {
-          const detail = await resp.text();
-          setError(
-            `API returned ${resp.status}: ${detail.slice(0, 200) || "unknown"}`
-          );
+          const body = await safeReadBody(resp);
+          setError(friendlyError(resp.status, body));
           return;
         }
         const data = await resp.json();
         setSource(data.source_analysis || null);
       } catch (err) {
         setError(
-          "Cannot reach the Lusaber API. Start it with: " +
-            "uvicorn api.main:app --reload --port 8000"
+          "We couldn't reach the Lusaber server. Please check your connection and try again."
         );
       } finally {
         setLoading(false);
