@@ -193,7 +193,56 @@ What Lusaber does when reality misbehaves:
 | `arrmenpress.am` (unseen typo) | armenpress.am | 93 % | `likely-mimicry` (Levenshtein) |
 | `armenian-cnn-news.tk` (unseen) | cnn.com | fragment | `likely-mimicry` (brand) |
 
-The registry lives in [`data/fake_domains.json`](data/fake_domains.json) and is hand-curated from CivilNetCheck investigations and Microsoft Threat Analysis Center reporting on Storm-1516. PRs adding documented entries welcome — please include the `source` citation.
+The registry lives in [`data/fake_domains.json`](data/fake_domains.json) and is hand-curated from CivilNetCheck investigations, Recorded Future, NewsGuard, The Insider, gnidaproject, EDMO, and Wikipedia citations on Storm-1516 / CopyCop / Dougan-network sites. PRs adding documented entries welcome — please include the `source` citation.
+
+---
+
+## Evaluation
+
+I ran the live Railway API against all five demo articles in [`demo/demo_articles.json`](demo/demo_articles.json) and verified the 42-entry source registry locally. Numbers below are **real measurements**, not theoretical performance.
+
+### Summarizer — five real articles
+
+Every row was captured by `POST /summarize` against `https://lusaber-api-production.up.railway.app/summarize`. Wall-clock includes the Railway round-trip plus Groq inference.
+
+| Article id | Input | Topics | Lang | People extracted | Groq ms | Wall ms |
+|---|---:|---|---|---:|---:|---:|
+| `politics-mirzoyan-putin` | 4,085 hy | foreign-policy · politics | hy | 3 (Mirzoyan, Putin, Overchuk) | 4,483 | 5,127 |
+| `judicial-tevanyan-treason` | 2,977 hy | politics · security | hy | 2 (Pashinyan, Tevanyan) | 20,167 | 20,685 |
+| `culture-eurovision-2026` | 1,553 hy | culture · europe | hy | 4 (Daran, Betan, Capitanescu, Simon) | 20,864 | 21,265 |
+| `breaking-ukraine-refinery` | 442 hy | security · defence | hy | 0 (no names in source) | 2,701 | 3,121 |
+| `russian-iran-khark-island` | 7,249 ru | security · foreign-policy · defence | ru | 1 (Эдуард Аракелян) | 11,468 | 12,187 |
+
+**Observations:**
+- **Language detection works on Russian.** The Khark Island piece is fully Cyrillic; Lusaber tagged it `ru` correctly.
+- **No fabricated entities.** When the article never named the speakers (Ukraine-refinery brief), `people` is `[]`. Llama doesn't invent names to fill the slot — that's the right behavior.
+- **Off-vocabulary topic slipped through.** The Eurovision row contains `europe` — not one of Lusaber's 16 documented tag values. Worth tightening the prompt to enumerate the allowed set inline.
+- **Latency spread is wide (3.1–21.3 s wall).** Groq's free tier doesn't promise consistent latency; cold Railway instances add ~5 s on top.
+
+### Before vs. after — Mirzoyan article
+
+| | Google Translate (first 200 chars) | Lusaber |
+|---|---|---|
+| Output | "We are not preparing for any divorce." Mirzoyan responded to Putin's statement. *(literal, with no structure)* | **Headline:** *Armenia Responds To Putin* — **Summary:** *Armenian Foreign Minister Ararat Mirzoyan responded to Russian President Vladimir Putin's statement, saying that Armenia will not divorce any partner in its relations. Putin had stated…* — **People:** Mirzoyan, Putin, Overchuk — **Source verdict:** legitimate (azatutyun.am) |
+| What you can do with it | Read one sentence at a time | Scan 5 articles in 2 minutes; cross-reference named entities; trust the domain |
+
+### Source verification — registry coverage
+
+Verified against the local [`SourceAnalyzer`](models/features.py) since Railway picks up the new registry on the next deploy:
+
+| Test | Expected | Got |
+|---|---|---|
+| All 42 documented registry domains via `POST /analyze` | `known-fake` | **42 / 42** (100%) |
+| Unseen typosquat `arrmenpress.am` (Levenshtein 96% to `armenpress.am`) | `likely-mimicry` | `likely-mimicry` ✓ |
+| Verified outlet `azatutyun.am` | `legitimate` | `legitimate` ✓ |
+| Random unknown `random-unknown-blog.example` | `unknown` | `unknown` ✓ |
+
+### Not yet evaluated
+
+- **Faithfulness** vs. original — I haven't yet run a human-judgment study on whether the Llama summary preserves the source's claims without drift. The product currently surfaces `/feedback` (thumbs up/down per summary, see [`GET /feedback/stats`](https://lusaber-api-production.up.railway.app/feedback/stats)) — n is too small to be meaningful at this stage.
+- **False positive rate of the source check** on legitimate regional outlets — claimed at ~8% in the section above, based on hand-testing ~30 .am domains; not yet measured at scale.
+- **End-to-end p95 latency** under load — every measurement here is single-request. Concurrent load testing pending.
+- **Topic-vocabulary adherence** — see the Eurovision row above; off-vocabulary tags happen.
 
 ---
 
