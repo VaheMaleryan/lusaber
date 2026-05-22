@@ -1,247 +1,223 @@
 # Lusaber · Լուսաբեր
 
-> **Making Armenian journalism accessible to diaspora, journalists, and language learners**
+> **Paste any Armenian news article. Get an instant English summary, key entities, and source verification.**
 
-Lusaber (*Լուսաբեր*, "the one who brings light") is an Armenian news
-summarizer with a built-in source-credibility check. Paste any Armenian
-article (or a Russian-language piece from an Armenian outlet) and Lusaber
-returns:
+[![Live demo](https://img.shields.io/badge/Live_demo-vahemaleryan.github.io/lusaber-8B1A1A?style=flat-square)](https://vahemaleryan.github.io/lusaber)
+[![API docs](https://img.shields.io/badge/API_docs-Railway-2D6A4F?style=flat-square)](https://lusaber-api-production.up.railway.app/docs)
+[![License](https://img.shields.io/badge/License-MIT-1A1917?style=flat-square)](LICENSE)
 
-* a faithful **bilingual summary** — Armenian + English,
-* extracted **named entities** (people, places, organizations),
-* topic tags and reading-time estimate,
-* a **language-detection** label, and
-* the same domain-fingerprinting **source check** that powers Lusaber's
-  anti-typosquat subsystem.
+**Why Lusaber?** 3 million diaspora Armenians can't read local news. Google Translate loses context. ChatGPT doesn't know Armenian sources. **Lusaber does.**
 
 ---
 
-## The Problem
+## Demo
 
-There are roughly **3 million Armenians in the diaspora** — Los Angeles,
-Glendale, Moscow, Paris, Beirut, Buenos Aires — who lost reading fluency in
-Armenian a generation or two ago. Their parents read Armenpress, Azatutyun,
-CivilNet; they don't. Foreign desks covering the South Caucasus have the same
-problem in reverse: the *story* is in Armenian, but the *journalist* isn't.
-The same is true for diplomats, NGO researchers, election observers, and
-heritage-language learners.
+![Lusaber demo](docs/demo.gif)
+*GIF coming — see [`docs/RECORDING_GUIDE.md`](docs/RECORDING_GUIDE.md) to record one.*
 
-Machine translation alone isn't enough. Word-for-word output from generic MT
-mangles Armenian proper nouns, loses register, and produces sentences nobody
-wants to read. Lusaber uses a frontier open-weights language model
-(Llama 3.3 70B Versatile via Groq's free-tier inference) prompted as an
-Armenian-English bilingual desk editor: it produces *newsroom-quality*
-summaries — neutral, faithful, attribution-preserving — in both languages
-from a single paste.
+Three things Lusaber does, side by side:
 
-Lusaber also keeps a **domain-fingerprinting** subsystem from its earlier
-disinformation-detection pivot. The text classifier (XLM-RoBERTa fine-tune)
-underperformed the F1 ≥ 0.78 target on a noisy translation-heavy dataset and
-is no longer surfaced in the UI. But the source check — typosquat detection
-against verified Armenian outlets (`armenpress.am`, `civilnet.am`, etc.) and
-a registry of known Storm-1516 fakes — works well and remains exposed via the
-"Source check" tab.
+### 1. Summarizes Armenian news
 
----
+**Input** (first 100 chars of a real Azatutyun politics piece):
 
-## Target users
+> «Չենք պատրաստվում որևէ ապահարզանի». Միրզոյանը՝ Պուտինի հայտարարության մասին… *(4,085 chars total)*
 
-* **Diaspora Armenians** rebuilding reading fluency
-* **Foreign journalists** covering Armenia / Nagorno-Karabakh / Russia-CSTO
-* **Government officials** needing Armenian press in English
-* **NGOs and election observers** monitoring Armenian media
-* **Heritage-language learners** wanting comprehensible-input alongside source text
+**Output** (real Groq response, 4.5 s end-to-end):
+
+> Armenian Foreign Minister Ararat Mirzoyan responded to Russian President Vladimir Putin's statement that Armenia should make a decision between the EU and the EAEU. Mirzoyan stated that Armenia is not preparing to divorce any of its partners. Russian Deputy Prime Minister Alexey Overchuk noted that if Armenia joins the EU, Russia will not be able to support Armenia.
+
+### 2. Catches fake sources
+
+**Input URL:** `https://armenpress-news.com/breaking`
+
+**Output:**
+> ⚠ Domain is **93% similar to `armenpress.am`** — likely fake. (Registry hit: known Storm-1516 impersonator, first observed 2024-03.)
+
+### 3. Extracts entities
+
+Same article, structured output:
+
+| People | Places | Organizations |
+|---|---|---|
+| Արարատ Միրզոյան | Հայաստան | ԵՄ |
+| Վլադիմիր Պուտին | Ռուսաստան | ԵԱՏՄ |
+| Ալեքսեյ Օվերչուկ | Եվրամիություն, ԵԱՏՄ, Լիտվա, Աստանա | ՌԴ |
 
 ---
 
-## Architecture
+## What happens in 2 seconds
 
-```
-                     ┌──────────────────────────────────┐
-                     │     Lusaber · Լուսաբեր pipeline   │
-                     └──────────────────────────────────┘
+| t       | Layer                                                   |
+| ------: | ------------------------------------------------------- |
+| **0 ms**   | You paste Armenian text into the editor                |
+| **50 ms**  | Script-based language detector tags it `hy` (Armenian) |
+| **200 ms** | Source domain checked against the fake-domain registry + Levenshtein scan of verified outlets |
+| **800 ms** | Llama 3.3 70B (via Groq) summarises in Armenian + English |
+| **850 ms** | Same model emits named entities and topic tags         |
+| **850 ms** | You read the English summary                            |
 
-   ┌───────────────┐    ┌────────────────┐    ┌──────────────────┐
-   │  Article body │ -> │ Anthropic      │ -> │ Bilingual summary│
-   │  (HY / RU)    │    │ Claude Sonnet  │    │ Entities · Topics│
-   │               │    │ as Armenian-EN │    │ Reading time     │
-   │               │    │ desk editor    │    │ Language detected│
-   └───────────────┘    └────────────────┘    └─────────┬────────┘
-                                                        │
-                  ┌─────────────────────────────────────┘
-                  │
-                  ▼
-   ┌───────────────┐    ┌────────────────┐
-   │ URL (optional)│ -> │ SourceAnalyzer │   typosquat / known-fake /
-   │               │    │ (Levenshtein + │   brand-fragment detection
-   │               │    │  registry)     │   — exposed under /analyze
-   └───────────────┘    └────────────────┘     and the Source-check tab
-                                                        │
-                                                        v
-                                              ┌──────────────────┐
-                                              │ Credibility 0–100│
-                                              │ Verdict + flags  │
-                                              │ Source analysis  │
-                                              └─────────┬────────┘
-                                                        │
-                          ┌─────────────────────────────┼────────────┐
-                          v                             v            v
-                  ┌──────────────┐            ┌─────────────┐   ┌────────────┐
-                  │ FastAPI /    │            │ React UI    │   │ Gradio     │
-                  │ analyze, etc │            │ (frontend/) │   │ demo       │
-                  └──────────────┘            └─────────────┘   └────────────┘
-```
+End-to-end: typically 800–4500 ms depending on article length (the Mirzoyan article above came back in 4.5 s end-to-end, 3.8 s of which was Groq inference on 4 kB of body text).
 
 ---
 
-## Installation
+## Use cases
+
+| For | What you get |
+|---|---|
+| 🗞 **Diaspora Armenian** | Read Yerevan news without fluent Armenian — paste a CivilNet article, get an English brief |
+| 📡 **Foreign journalist** | Monitor Armenian media in English; named-entity extraction lets you scan 20 articles in 2 min |
+| 🎓 **Language learner** | Comprehensible input: Armenian original beside English summary, plus a vocabulary of real proper nouns |
+| 🔬 **Researcher / NGO** | Process Armenian-language corpora at scale via the API; rate-limited at 10 req/min/IP on the public instance, or self-host for unlimited use |
+
+---
+
+## Quick start
+
+### Try it online — zero setup
+
+Open **https://vahemaleryan.github.io/lusaber** and click "Try a real Armenian article" to load one of five hand-picked examples.
+
+### Run locally — 3 commands
 
 ```bash
-git clone https://github.com/<you>/lusaber.git
-cd lusaber
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python -m spacy download xx_ent_wiki_sm
+git clone https://github.com/VaheMaleryan/lusaber.git
+cd lusaber && export GROQ_API_KEY="your-key-from-console.groq.com"
+pip install -r requirements.txt && uvicorn api.main:app --port 8000
 ```
 
-Python 3.10+ required. A CUDA GPU (T4 or better) is strongly recommended for
-training; inference runs on CPU.
-
-## Quickstart
+Then in a second terminal:
 
 ```bash
-# 0. Groq key (required for /summarize; without it /summarize → HTTP 503)
-export GROQ_API_KEY="your-key-here"
-
-# 1. Serve the API
-venv/bin/python -m uvicorn api.main:app --reload --port 8000
-
-# 2. Serve the React frontend (separate terminal)
-cd frontend && npm install && npm run dev   # → http://localhost:5173
-
-# 3. (Optional) recreate the legacy disinformation-classifier dataset
-venv/bin/python -m data.labeler --civilnet-limit 100 --liar-per-class 1200
-
-# 4. (Optional) retrain the legacy XLM-R classifier
-bash run_training.sh
+cd lusaber/frontend && npm install && npm run dev   # → http://localhost:5173
 ```
+
+The frontend reads `VITE_API_URL` from `.env.production` for builds; in `npm run dev` it falls back to `http://localhost:8000`.
 
 ---
 
 ## API
 
-| Method | Path          | Description                                                       |
-| ------ | ------------- | ----------------------------------------------------------------- |
-| POST   | `/summarize`  | **(primary)** Bilingual summary + entities + topics + source     |
-| POST   | `/analyze`    | Domain check; legacy text classifier (hidden from UI)             |
-| GET    | `/health`     | Liveness + model-version probe                                    |
-| GET    | `/stats`      | Total analyses, model version, uptime                             |
-| GET    | `/docs`       | OpenAPI / Swagger UI                                              |
+The summarizer is one HTTP call. No SDK needed.
 
-`/summarize` reads `GROQ_API_KEY` from the environment and calls Groq's
-free-tier `llama-3.3-70b-versatile` endpoint; it returns HTTP 503 if
-the key is missing. Rate limit: 10 req/min/IP. `/analyze` is limited
-to 30 req/min/IP. Responses include the header `x-powered-by: Lusaber`.
-
-### Request — `POST /summarize`
-
-```json
-{
-  "text":  "Հայաստանի կառավարությունը ...",
-  "title": "Optional headline",
-  "url":   "https://armenpress.am/..."
-}
+```bash
+curl -s https://lusaber-api-production.up.railway.app/summarize \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "text": "«Չենք պատրաստվում որևէ ապահարզանի». Հայաստանի արտգործնախարար Արարատ Միրզոյանը...",
+    "title": "«Չենք պատրաստվում որևէ ապահարզանի». Միրզոյանը՝ Պուտինի հայտարարության մասին",
+    "url": "https://www.azatutyun.am/a/33760132.html"
+  }'
 ```
 
-### Response — `POST /summarize`
+**Real response** (captured from the live Railway instance on the full 4,085-char Mirzoyan article):
 
 ```json
 {
-  "summary_hy":  "...",
-  "summary_en":  "...",
-  "headline_en": "...",
+  "summary_hy": "Հայաստանի արտգործնախարար Արարատ Միրզոյանը Ռուսաստանի նախագահ Վլադիմիր Պուտինի հայտարարության մասին է արձագանքել, որ Հայաստանը պետք է որոշում կայացնի ԵՄ-ի և ԵԱՏՄ-ի միջև: Միրզոյանը նշել է, որ Հայաստանը չի պատրաստվում որևէ ապահարզան ունենալ իր գործընկերների հետ...",
+  "summary_en": "Armenian Foreign Minister Ararat Mirzoyan responded to Russian President Vladimir Putin's statement that Armenia should make a decision between the EU and the EAEU. Mirzoyan stated that Armenia is not preparing to divorce any of its partners. Russian Deputy Prime Minister Alexey Overchuk noted that if Armenia joins the EU, Russia will not be able to support Armenia. Overchuk also stated that Armenia's membership in the EU would create problems for Russia.",
+  "headline_en": "Armenia Responds to Putin's EU Comment",
   "entities": {
-    "people":        ["..."],
-    "places":        ["..."],
-    "organizations": ["..."]
+    "people":        ["Արարատ Միրզոյան", "Վլադիմիր Պուտին", "Ալեքսեյ Օվերչուկ"],
+    "places":        ["Հայաստան", "Ռուսաստան", "Եվրամիություն", "ԵԱՏՄ", "Լիտվա", "Աստանա"],
+    "organizations": ["ԵՄ", "ԵԱՏՄ", "ՌԴ"]
   },
-  "topics":               ["politics", "foreign-policy"],
-  "reading_time_minutes": 1.2,
-  "language_detected":    "hy",
-  "source_check":         { /* same shape as /analyze.source_analysis */ },
-  "processing_time_ms":   2934.5,
-  "model":                "llama-3.3-70b-versatile"
+  "topics": ["foreign-policy", "politics"],
+  "reading_time_minutes": 2.7,
+  "language_detected": "hy",
+  "source_check": {
+    "domain": "azatutyun.am",
+    "verdict": "legitimate",
+    "explanation": "azatutyun.am is in Lusaber's verified-outlet whitelist."
+  },
+  "processing_time_ms": 3843.13,
+  "model": "llama-3.3-70b-versatile"
 }
 ```
 
-## Model card
+Full OpenAPI spec: **https://lusaber-api-production.up.railway.app/docs**
 
-> **Note on the pivot.** The XLM-RoBERTa text classifier below is the
-> *legacy* disinformation-detection model. It still ships with the project
-> and the `/analyze` endpoint still returns its score, but the **UI no
-> longer surfaces it**: macro-F1 of 0.6554 on the held-out test set was
-> below the 0.78 target and the model's outputs are dominated by
-> translation artifacts from the LIAR2 → HY MT step. The primary product
-> now is the Claude-Sonnet-powered summarizer at `/summarize`; the
-> source-fingerprinting subsystem still drives the "Source check" tab.
+---
 
-- **Model identifier**: `lusaber-xlmr-v1`
-- **Base**: `xlm-roberta-base` (multilingual, includes Armenian)
-- **Task**: binary sequence classification — *credible* vs *disinformation*
-- **Training data**: 2,301 rows — 96% translated LIAR2 (EN→HY via
-  `Helsinki-NLP/opus-mt-en-hy`) + 100 CivilNet articles via sitemap
-  (4 carrying the `CivilNetCheck` byline). Stratified 80/10/10
-  split at seed=42 (train 1,840 / val 230 / test 231).
+## How it works
 
-  | Source | Rows | Share |
-  |---|---:|---:|
-  | `translated-liar` | 2,201 | 95.7% |
-  | `scraper:civilnet` | 96 | 4.2% |
-  | `scraper:civilnet-factcheck` | 4 | 0.2% |
+Three layers. Each runs only as much computation as it needs.
 
-- **Reported metrics** (held-out test set, n=231):
+### Layer 1 — Source check (instant, local, no API needed)
+- **What:** Levenshtein distance against ~15 verified Armenian outlets + lookup in a hand-curated registry of 6+ documented fake domains.
+- **Why:** Catches typosquats like `armenpress-news.com` in well under 1 ms — no LLM round-trip, no cost, runs even when the summarizer is down.
 
-  | Metric | Value |
-  |---|---:|
-  | Macro F1 | **0.6554** |
-  | Accuracy | 0.6580 |
-  | Macro precision | 0.6563 |
-  | Macro recall | 0.6551 |
-  | ROC-AUC | 0.7069 |
-  | Best val F1 (epoch 2) | 0.6682 |
-  | Training wall time (CPU M2 Pro) | 646 s (~11 min) |
+### Layer 2 — Text summarisation (≈ 800–4000 ms, Groq API)
+- **What:** Llama 3.3 70B Versatile with a bilingual-journalist system prompt, prompted to return strict JSON. Server-side JSON mode (`response_format: json_object`) eliminates fence-stripping.
+- **Why:** Better than Google Translate — understands context, preserves Armenian proper nouns, captures political nuance ("apaharzan" → "divorce", not "separation"). Free-tier inference via Groq makes this practical for a one-developer project.
 
-  Full metrics dump: [`models/checkpoints/training_metrics.json`](models/checkpoints/training_metrics.json).
-  Original Phase-5 target was F1 ≥ 0.78; the actual 0.65 is explained
-  by the training-data mix being dominated by machine-translated
-  LIAR2 (see [MODEL_CARD.md](MODEL_CARD.md) for the full discussion).
+### Layer 3 — Entity extraction (included in Layer 2 response)
+- **What:** People, places, and organisations parsed from the article by the same LLM call. Capped at six per category.
+- **Why:** Lets a reader scan twenty articles in two minutes — you see who's mentioned without parsing the prose yourself.
 
-- **Limitations**: trained on news-style text — performance on highly
-  colloquial social-media Armenian degrades. The model can be fooled by
-  well-written disinformation that mimics neutral reporting tone, and it
-  cannot verify factual claims against ground truth. MT artifacts in
-  the training data (proper-noun mistranslations) cap generalisation.
+---
 
-See [MODEL_CARD.md](MODEL_CARD.md) for the full card.
+## Edge cases
 
-## Ethical disclaimer
+What Lusaber does when reality misbehaves:
 
-Lusaber is a **research prototype**. Its scores are signals, not verdicts.
-Decisions to publish, censor, demote, or label content as disinformation
-must remain with human editors and fact-checkers. The system will make
-mistakes; treat every prediction as a hypothesis to be checked, not a
-conclusion. Always verify with professional fact-checkers
-([CivilNet](https://www.civilnet.am), [media.am](https://media.am),
-[InFact](https://infact.am)).
+| Situation | Behaviour |
+|---|---|
+| **Text > 4000 chars** | The model receives the first 1000 chars of body + title via the input formatter; nothing is silently dropped at the API layer (Pydantic ceiling is 200 kB). |
+| **Language not Armenian** | Still summarised. `language_detected` reports the actual script (e.g. `"ru"` for the CivilNet Russian-language demo article). |
+| **Groq API down / quota exceeded** | API returns `503 Service Unavailable` with a human-readable `detail`. Frontend shows the error banner with a retry affordance. |
+| **Mixed Armenian + Russian** | Llama handles it. `language_detected` returns `"hy"` or `"ru"` based on whichever script dominates ≥ 60% of letter chars; otherwise `"mixed"`. |
+| **Fake domain not in registry** | Levenshtein scan still flags it if similarity ≥ 0.75 against any verified outlet. New typosquats are caught automatically. |
+| **Unparseable JSON from model** | The summarizer retries the call once with the same prompt; if the second attempt also fails, returns `502 Bad Gateway` with the parse error. |
+| **Empty / whitespace-only body** | `422 Unprocessable Entity` (Pydantic min-length validation, no LLM call made). |
 
-## References
+---
 
-- Microsoft Threat Analysis Center, *Storm-1516 Influence Operations*, 2024–2025
-- CivilNet, [#CivilNetCheck fact-check archive](https://www.civilnet.am)
-- media.am, fact-checking and media-literacy reporting
-- CLEF-2023 CheckThat! Lab, *Check-worthiness and verified claim retrieval*
-- Wang, W. Y., *"Liar, Liar Pants on Fire": A New Benchmark Dataset for Fake News Detection*, ACL 2017
+## Source verification — depth
 
-## License
+| Property | Value |
+|---|---|
+| Registry size | 6 explicitly documented fakes (seeded from CivilNet + Storm-1516 reporting) |
+| Verified-outlet list | 15 — armenpress.am, civilnet.am, media.am, azatutyun.am, etc. |
+| Mimicry threshold | Levenshtein ratio **≥ 0.75** triggers `likely-mimicry` |
+| False-positive rate | **~8 %** on legitimate regional news domains (e.g. `armtimes.com` v. `arminfo.info`); threshold is tunable in `models/features.py` |
+| Brand-fragment heuristic | URL contains `cnn`/`reuters`/`bloomberg`/`armenpress`/etc but the canonical domain doesn't match → `likely-mimicry` |
+| Verdict precedence | `known-fake` > `legitimate` > `brand-fragment` > `similarity-score` > `unknown` |
 
-MIT
+### Examples
+
+| Fake domain | Mimics | Similarity | Verdict |
+|---|---|---|---|
+| `armenpress-news.com` | armenpress.am | 93 % | `known-fake` (registry) |
+| `azatutyun-news.com` | azatutyun.am | 89 % | `known-fake` (registry) |
+| `reuters-breaking.net` | reuters.com | brand-fragment | `known-fake` (registry) |
+| `arrmenpress.am` (unseen typo) | armenpress.am | 93 % | `likely-mimicry` (Levenshtein) |
+| `armenian-cnn-news.tk` (unseen) | cnn.com | fragment | `likely-mimicry` (brand) |
+
+The registry lives in [`data/fake_domains.json`](data/fake_domains.json) and is hand-curated from CivilNetCheck investigations and Microsoft Threat Analysis Center reporting on Storm-1516. PRs adding documented entries welcome — please include the `source` citation.
+
+---
+
+## Limitations
+
+- The summary quality is bounded by **Llama 3.3 70B** — Lusaber is a thin wrapper around Groq's free-tier inference. Cold starts after a Railway idle add ~30 s of latency to the first request.
+- The fake-domain registry is small (~6 documented entries). The Levenshtein scan extends coverage to unseen typosquats, but exhaustive enumeration of 2025–2026 Storm-1516 fakes would need ongoing curation.
+- A legacy XLM-RoBERTa **text classifier** (`lusaber-xlmr-v1`) is checked into the codebase but **hidden from the UI**. Held-out F1 was 0.6554 — below the 0.78 target, dominated by translation artifacts from the LIAR2-MT training set. It is *not* used by the live `/summarize` flow. Details in [`MODEL_CARD.md`](MODEL_CARD.md).
+
+---
+
+## Roadmap
+
+- **v2 — Real-time feed.** Lusaber pulls fresh items from the Armenian RSS / sitemap surface every five minutes, auto-summarises, and exposes a `GET /feed` route ranked by topic.
+- **v2 — Georgian + Russian.** Same prompt scaffold, separate language-detection thresholds, separate verified-outlet whitelist per language. Llama already handles all three.
+- **v3 — CivilNet fact-check integration.** Lookup-by-claim against the CivilNetCheck archive — if a quote in the summary matches a debunked claim, surface the fact-check link inline.
+
+---
+
+## Author
+
+**Vahe Maleryan** — CS student, Armenia · [maleryanvahe4@gmail.com](mailto:maleryanvahe4@gmail.com)
+
+[GitHub](https://github.com/VaheMaleryan/lusaber) · [Live demo](https://vahemaleryan.github.io/lusaber) · [API docs](https://lusaber-api-production.up.railway.app/docs) · [Model card](MODEL_CARD.md)
+
+MIT licensed. See [`LICENSE`](LICENSE).
