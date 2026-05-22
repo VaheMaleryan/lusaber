@@ -68,7 +68,7 @@ export function friendlyError(status, body) {
       }
       if (type === "missing") {
         if (field === "text") {
-          return "Please paste an article before clicking Summarize.";
+          return "Please paste an article before summarizing.";
         }
         if (field === "url") {
           return "Please enter a URL to check.";

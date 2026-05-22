@@ -575,26 +575,60 @@ export default function Summarizer() {
 
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [examples, setExamples] = useState([]);
+  // null = not tried yet · "loading" · "ready" · "unavailable"
+  const [demoState, setDemoState] = useState(null);
 
   // Demo articles are fetched lazily the first time the user opens the
-  // disclosure (cheap — file is ~33 KB).
+  // disclosure. Two failure modes to handle explicitly:
+  //   * the file isn't where we expect (gh-pages base-path mismatch);
+  //   * the network hangs (rare, but a 5-second AbortController stops
+  //     the disclosure from spinning forever).
   useEffect(() => {
-    if (!examplesOpen || examples.length > 0) return;
-    fetch("/demo_articles.json")
-      .then((r) => (r.ok ? r.json() : null))
+    if (!examplesOpen) return undefined;
+    if (demoState === "ready" || demoState === "loading") return undefined;
+
+    setDemoState("loading");
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+
+    // BASE_URL is "/" in dev and "/lusaber/" in production — so the
+    // same code path works locally and on gh-pages without a separate
+    // build flag.
+    const url = `${import.meta.env.BASE_URL}demo_articles.json`;
+
+    fetch(url, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`status ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
-        if (data?.articles) setExamples(data.articles);
+        clearTimeout(timer);
+        const items = data?.articles;
+        if (Array.isArray(items) && items.length > 0) {
+          setExamples(items);
+          setDemoState("ready");
+        } else {
+          setExamples([]);
+          setDemoState("unavailable");
+        }
       })
       .catch(() => {
-        /* non-fatal — disclosure stays empty */
+        clearTimeout(timer);
+        setExamples([]);
+        setDemoState("unavailable");
       });
-  }, [examplesOpen, examples.length]);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [examplesOpen, demoState]);
 
   const runSummarize = useCallback(async () => {
     setErrorState(null);
     setInlineError("");
     if (!text.trim()) {
-      setInlineError("Paste an article body to summarize.");
+      setInlineError("Please paste an article before summarizing.");
       return;
     }
     if (text.length > MAX_CHARS) {
@@ -824,9 +858,13 @@ export default function Summarizer() {
           </button>
           {examplesOpen && (
             <ul className="mt-3 space-y-2">
-              {examples.length === 0 ? (
+              {demoState === "loading" ? (
                 <li className="text-[12px] text-ink-muted">
                   Loading demo articles…
+                </li>
+              ) : demoState === "unavailable" ? (
+                <li className="text-[12px] text-ink-muted">
+                  Demo articles unavailable — paste your own article above.
                 </li>
               ) : (
                 examples.map((ex) => (
