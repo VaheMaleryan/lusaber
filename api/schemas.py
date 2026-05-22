@@ -146,6 +146,55 @@ class SummarizeResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# /feedback
+# ---------------------------------------------------------------------------
+FeedbackRating = Literal[-1, 1]
+
+
+class FeedbackRequest(BaseModel):
+    """Request body for ``POST /feedback``.
+
+    A ``session_id`` is a stable, opaque identifier minted by the
+    frontend (e.g. a UUID stored in ``sessionStorage``). It is used
+    only to de-duplicate accidental double-clicks on the thumbs in
+    the same browser tab — not for authentication.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str = Field(min_length=4, max_length=128)
+    rating: FeedbackRating = Field(
+        description="1 for thumbs-up, -1 for thumbs-down."
+    )
+    summary_en: str = Field(
+        min_length=1, max_length=4_000,
+        description="The English summary the user is rating. Stored as a SHA-1 hash, not verbatim.",
+    )
+    article_length: int = Field(ge=0, le=200_000)
+    topics: list[str] = Field(default_factory=list, max_length=5)
+
+
+class FeedbackResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["recorded", "duplicate"]
+    total_ratings: int = Field(ge=0)
+
+
+class FeedbackStatsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_ratings: int = Field(ge=0)
+    positive: int = Field(ge=0)
+    negative: int = Field(ge=0)
+    positive_rate: float = Field(
+        ge=0.0, le=1.0,
+        description="positive / total_ratings, or 0.0 if no ratings yet.",
+    )
+    avg_article_length: float = Field(ge=0.0)
+
+
+# ---------------------------------------------------------------------------
 # /health
 # ---------------------------------------------------------------------------
 class HealthResponse(BaseModel):

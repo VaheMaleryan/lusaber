@@ -41,6 +41,9 @@ from api.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
     EntitiesOut,
+    FeedbackRequest,
+    FeedbackResponse,
+    FeedbackStatsResponse,
     HealthResponse,
     SourceAnalysisOut,
     StatsResponse,
@@ -86,7 +89,85 @@ def _init_db(path: Path) -> None:
         con.execute(
             "INSERT OR IGNORE INTO stats(key, value) VALUES ('total_analyses', 0)"
         )
+        # User-feedback table — populated by POST /feedback. UNIQUE on
+        # (session_id, summary_hash) lets us return "duplicate" on the
+        # same browser session re-rating the same summary.
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS feedback ("
+            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  session_id     TEXT NOT NULL,"
+            "  rating         INTEGER NOT NULL,"
+            "  summary_hash   TEXT NOT NULL,"
+            "  article_length INTEGER NOT NULL,"
+            "  topics_json    TEXT NOT NULL DEFAULT '[]',"
+            "  created_at     TEXT NOT NULL DEFAULT (datetime('now')),"
+            "  UNIQUE(session_id, summary_hash)"
+            ")"
+        )
         con.commit()
+    finally:
+        con.close()
+
+
+# ---------------------------------------------------------------------------
+# Feedback storage helpers
+# ---------------------------------------------------------------------------
+def _record_feedback(
+    path: Path,
+    *,
+    session_id: str,
+    rating: int,
+    summary_hash: str,
+    article_length: int,
+    topics_json: str,
+) -> tuple[bool, int]:
+    """Insert one feedback row.
+
+    Returns ``(inserted, total_ratings)``. ``inserted=False`` means the
+    UNIQUE constraint fired (same session, same summary) — the caller
+    surfaces that as ``status="duplicate"``.
+    """
+    con = sqlite3.connect(path)
+    try:
+        try:
+            con.execute(
+                "INSERT INTO feedback (session_id, rating, summary_hash, article_length, topics_json) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (session_id, rating, summary_hash, article_length, topics_json),
+            )
+            con.commit()
+            inserted = True
+        except sqlite3.IntegrityError:
+            inserted = False
+        cur = con.execute("SELECT COUNT(*) FROM feedback")
+        total = int(cur.fetchone()[0])
+        return inserted, total
+    finally:
+        con.close()
+
+
+def _aggregate_feedback(path: Path) -> dict[str, float | int]:
+    con = sqlite3.connect(path)
+    try:
+        row = con.execute(
+            "SELECT "
+            " COUNT(*),"
+            " COALESCE(SUM(CASE WHEN rating =  1 THEN 1 ELSE 0 END), 0),"
+            " COALESCE(SUM(CASE WHEN rating = -1 THEN 1 ELSE 0 END), 0),"
+            " COALESCE(AVG(article_length), 0.0)"
+            " FROM feedback"
+        ).fetchone()
+        total = int(row[0])
+        positive = int(row[1])
+        negative = int(row[2])
+        avg_len = float(row[3])
+        return {
+            "total_ratings": total,
+            "positive": positive,
+            "negative": negative,
+            "positive_rate": (positive / total) if total else 0.0,
+            "avg_article_length": round(avg_len, 1),
+        }
     finally:
         con.close()
 
@@ -313,4 +394,50 @@ def summarize(payload: SummarizeRequest, request: Request) -> SummarizeResponse:
         source_check=source_out,
         processing_time_ms=result.processing_time_ms,
         model=result.model,
+    )
+
+
+# ---------------------------------------------------------------------------
+# /feedback
+# ---------------------------------------------------------------------------
+@app.post("/feedback", response_model=FeedbackResponse, tags=["feedback"])
+@limiter.limit("30/minute")
+def feedback(payload: FeedbackRequest, request: Request) -> FeedbackResponse:
+    """Record one thumbs-up / thumbs-down rating for a summary.
+
+    The summary text is hashed (SHA-1) before storage — Lusaber does
+    not retain the verbatim summary string. UNIQUE on
+    (session_id, summary_hash) prevents accidental double-rating
+    from the same browser tab; a second call returns
+    ``status="duplicate"`` without inserting.
+    """
+    import hashlib
+    import json as _json
+
+    summary_hash = hashlib.sha1(payload.summary_en.encode("utf-8")).hexdigest()
+    topics_json = _json.dumps(payload.topics, ensure_ascii=False)
+    inserted, total = _record_feedback(
+        _DB_PATH,
+        session_id=payload.session_id,
+        rating=int(payload.rating),
+        summary_hash=summary_hash,
+        article_length=int(payload.article_length),
+        topics_json=topics_json,
+    )
+    return FeedbackResponse(
+        status="recorded" if inserted else "duplicate",
+        total_ratings=total,
+    )
+
+
+@app.get("/feedback/stats", response_model=FeedbackStatsResponse, tags=["feedback"])
+def feedback_stats() -> FeedbackStatsResponse:
+    """Aggregate counts and positive rate across all recorded feedback."""
+    agg = _aggregate_feedback(_DB_PATH)
+    return FeedbackStatsResponse(
+        total_ratings=int(agg["total_ratings"]),
+        positive=int(agg["positive"]),
+        negative=int(agg["negative"]),
+        positive_rate=float(agg["positive_rate"]),
+        avg_article_length=float(agg["avg_article_length"]),
     )

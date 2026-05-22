@@ -18,6 +18,23 @@ import SourceCheck from "./SourceCheck.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// Stable opaque identifier for this browser session. Used by /feedback
+// to de-duplicate accidental double-clicks — no authentication, no PII.
+function getSessionId() {
+  const KEY = "lusaber-session-id";
+  let sid = null;
+  try {
+    sid = sessionStorage.getItem(KEY);
+    if (!sid) {
+      sid = `sid-${crypto.randomUUID()}`;
+      sessionStorage.setItem(KEY, sid);
+    }
+  } catch {
+    sid = `sid-${Math.random().toString(36).slice(2)}`;
+  }
+  return sid;
+}
+
 // ---------------------------------------------------------------------------
 // Topic palette
 // ---------------------------------------------------------------------------
@@ -264,6 +281,126 @@ function SourceSummary({ source }) {
     </dl>
   );
 }
+
+function FeedbackBar({ result }) {
+  // `key` is recomputed when the result changes, so the bar resets
+  // for each new summary. Internally tracked via state.
+  const [submitted, setSubmitted] = useState(null); // null | 1 | -1
+  const [pending, setPending] = useState(false);
+  const [stats, setStats] = useState(null);
+
+  // Pull the latest aggregate stats once on first render.
+  useEffect(() => {
+    fetch(`${API_BASE}/feedback/stats`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => data && setStats(data))
+      .catch(() => {
+        /* non-fatal */
+      });
+  }, []);
+
+  const submit = useCallback(
+    async (rating) => {
+      if (submitted || pending) return;
+      setPending(true);
+      try {
+        const resp = await fetch(`${API_BASE}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: getSessionId(),
+            rating,
+            summary_en: result.summary_en || "",
+            article_length: (result.reading_time_minutes || 0) * 200, // best-effort
+            topics: result.topics || [],
+          }),
+        });
+        if (resp.ok) {
+          setSubmitted(rating);
+          // Refresh aggregate so the user immediately sees their vote
+          // reflected (or the duplicate count stays stable).
+          fetch(`${API_BASE}/feedback/stats`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => data && setStats(data))
+            .catch(() => {});
+        }
+      } catch {
+        /* swallow — feedback is best-effort */
+      } finally {
+        setPending(false);
+      }
+    },
+    [result, submitted, pending]
+  );
+
+  const positivePct =
+    stats && stats.total_ratings > 0
+      ? Math.round(stats.positive_rate * 100)
+      : null;
+
+  return (
+    <section
+      className="card animate-fadeRise p-5"
+      style={{ animationDelay: "300ms" }}
+      aria-label="feedback"
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          {submitted == null ? (
+            <p className="text-[14px] text-ink">
+              Was this summary accurate?
+            </p>
+          ) : (
+            <p className="text-[14px] font-medium text-ink">
+              Thank you for your feedback!
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={pending || submitted != null}
+            onClick={() => submit(1)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors duration-button disabled:cursor-not-allowed disabled:opacity-90"
+            style={{
+              borderColor: submitted === 1 ? "#2D6A4F" : "#E8E6E1",
+              backgroundColor: submitted === 1 ? "#ECF6F0" : "#FFFFFF",
+              color: submitted === 1 ? "#2D6A4F" : "#1A1917",
+            }}
+            aria-pressed={submitted === 1}
+          >
+            <span aria-hidden="true">👍</span>
+            <span>Yes</span>
+          </button>
+          <button
+            type="button"
+            disabled={pending || submitted != null}
+            onClick={() => submit(-1)}
+            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors duration-button disabled:cursor-not-allowed disabled:opacity-90"
+            style={{
+              borderColor: submitted === -1 ? "#991B1B" : "#E8E6E1",
+              backgroundColor: submitted === -1 ? "#FCEBEB" : "#FFFFFF",
+              color: submitted === -1 ? "#991B1B" : "#1A1917",
+            }}
+            aria-pressed={submitted === -1}
+          >
+            <span aria-hidden="true">👎</span>
+            <span>No</span>
+          </button>
+        </div>
+      </div>
+
+      {stats && stats.total_ratings > 0 && (
+        <p className="mt-3 font-mono text-[11px] text-ink-muted">
+          {stats.total_ratings} {stats.total_ratings === 1 ? "person has" : "people have"} rated summaries ·{" "}
+          {positivePct}% found them accurate
+        </p>
+      )}
+    </section>
+  );
+}
+
 
 // ---------------------------------------------------------------------------
 // Loading / Empty
@@ -540,6 +677,7 @@ export default function Summarizer() {
               processingTimeMs={result.processing_time_ms}
               model={result.model}
             />
+            <FeedbackBar key={result.headline_en || result.summary_en} result={result} />
           </>
         ) : (
           <EmptyState />
