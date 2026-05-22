@@ -13,7 +13,6 @@
 ## Demo
 
 ![Lusaber demo](docs/demo.gif)
-*GIF coming — see [`docs/RECORDING_GUIDE.md`](docs/RECORDING_GUIDE.md) to record one.*
 
 Three things Lusaber does, side by side:
 
