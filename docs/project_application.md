@@ -1,10 +1,8 @@
-# startup competition 2026 — Application
+# Lusaber · Լուսաբեր — Project Application
 
 **Applicant:** Vahe Maleryan
-**Track:** AI/ML
 **Sector:** AI / ML
 **Project:** Lusaber · Լուսաբեր
-**Submitted:** May 2026
 
 ---
 
@@ -63,15 +61,15 @@ I'm a Computer Science student in Armenia. I've been building Lusaber alone for 
 
 ---
 
-## 7. What I want from the Summit
+## 7. What I'm looking for
 
 Three concrete things:
 
 1. **Mentorship** from people who have shipped news / civic-tech products in the South Caucasus. I've built v1 alone; v2 needs editorial judgment I don't have yet.
 2. **Connections** at CivilNet, media.am, InFact, and the Microsoft Threat Analysis Center — for the fact-check integration and to keep the fake-domain registry current.
-3. **Honest feedback** on the product. The AI/ML track is full of people who can tell me — kindly — what's wrong with Lusaber after they try it. That's what I want most.
+3. **Honest feedback** on the product. A startup competition or any community of builders is full of people who can tell me — kindly — what's wrong with Lusaber after they try it. That's what I want most.
 
-If invited, I'll bring a working demo, the GitHub repo, and a willingness to ship faster than the disinformation does.
+I'll bring a working demo, the GitHub repo, and a willingness to ship faster than the disinformation does.
 
 ---
 

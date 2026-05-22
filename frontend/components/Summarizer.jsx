@@ -8,9 +8,6 @@
  *   2. Entities         — People · Places · Organizations as pill tags
  *   3. Topics + Source  — topic pills with category-tinted backgrounds,
  *                         plus a compact source-check on the right
- *
- * Demo articles are fetched from /demo_articles.json (served from
- * frontend/public/) and listed in a collapsible "Try an example" panel.
  */
 
 import React, { useCallback, useEffect, useState } from "react";
@@ -573,57 +570,6 @@ export default function Summarizer() {
   const [errorState, setErrorState] = useState(null);
   const [inlineError, setInlineError] = useState("");
 
-  const [examplesOpen, setExamplesOpen] = useState(false);
-  const [examples, setExamples] = useState([]);
-  // null = not tried yet · "loading" · "ready" · "unavailable"
-  const [demoState, setDemoState] = useState(null);
-
-  // Demo articles are fetched lazily the first time the user opens the
-  // disclosure. Two failure modes to handle explicitly:
-  //   * the file isn't where we expect (gh-pages base-path mismatch);
-  //   * the network hangs (rare, but a 5-second AbortController stops
-  //     the disclosure from spinning forever).
-  useEffect(() => {
-    if (!examplesOpen) return undefined;
-    if (demoState === "ready" || demoState === "loading") return undefined;
-
-    setDemoState("loading");
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-
-    // BASE_URL is "/" in dev and "/lusaber/" in production — so the
-    // same code path works locally and on gh-pages without a separate
-    // build flag.
-    const url = `${import.meta.env.BASE_URL}demo_articles.json`;
-
-    fetch(url, { signal: controller.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error(`status ${r.status}`);
-        return r.json();
-      })
-      .then((data) => {
-        clearTimeout(timer);
-        const items = data?.articles;
-        if (Array.isArray(items) && items.length > 0) {
-          setExamples(items);
-          setDemoState("ready");
-        } else {
-          setExamples([]);
-          setDemoState("unavailable");
-        }
-      })
-      .catch(() => {
-        clearTimeout(timer);
-        setExamples([]);
-        setDemoState("unavailable");
-      });
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [examplesOpen, demoState]);
-
   const runSummarize = useCallback(async () => {
     setErrorState(null);
     setInlineError("");
@@ -711,14 +657,6 @@ export default function Summarizer() {
 
   const onClear = useCallback(() => {
     setText("");
-    setInlineError("");
-  }, []);
-
-  const fillExample = useCallback((ex) => {
-    setText(ex.body);
-    setUrl(ex.url || "");
-    setTitle(ex.title || "");
-    setErrorState(null);
     setInlineError("");
   }, []);
 
@@ -844,47 +782,6 @@ export default function Summarizer() {
             always verify with the original source before publishing.
           </p>
         </form>
-
-        {/* Examples disclosure */}
-        <div className="mt-6 border-t border-paper-border pt-5">
-          <button
-            type="button"
-            onClick={() => setExamplesOpen((v) => !v)}
-            className="flex w-full items-center justify-between text-[13px] uppercase tracking-verdict text-ink-muted hover:text-ink"
-            aria-expanded={examplesOpen}
-          >
-            <span>Try a real Armenian article</span>
-            <span aria-hidden="true">{examplesOpen ? "−" : "+"}</span>
-          </button>
-          {examplesOpen && (
-            <ul className="mt-3 space-y-2">
-              {demoState === "loading" ? (
-                <li className="text-[12px] text-ink-muted">
-                  Loading demo articles…
-                </li>
-              ) : demoState === "unavailable" ? (
-                <li className="text-[12px] text-ink-muted">
-                  Demo articles unavailable — paste your own article above.
-                </li>
-              ) : (
-                examples.map((ex) => (
-                  <li key={ex.id}>
-                    <button
-                      type="button"
-                      className="w-full rounded-md border border-paper-border bg-paper-card px-3 py-2 text-left text-[13px] transition-colors duration-button hover:border-armenian-red"
-                      onClick={() => fillExample(ex)}
-                    >
-                      <span className="font-mono text-[11px] uppercase tracking-verdict text-ink-muted">
-                        [{ex.language}] {ex.category}
-                      </span>
-                      <span className="block text-ink">{ex.title}</span>
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
-          )}
-        </div>
       </section>
 
       {/* ----- Results ----- */}
