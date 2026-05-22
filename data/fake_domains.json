@@ -1,51 +1,311 @@
 {
   "_meta": {
     "name": "Lusaber fake-domains registry",
-    "description": "Known Armenian-targeted disinformation domains. Each entry is a documented fake outlet identified by Armenian fact-checkers (CivilNetCheck, media.am, InFact) or by Microsoft Threat Analysis Center reporting on Storm-1516. New entries should be added only with a citation in the `source` field. The single placeholder entry below illustrates the schema and should be replaced once real CivilNet investigations are ingested in data/labeler.py.",
+    "description": "Documented fake / impersonator domains in the Storm-1516 / CopyCop (Russian state-aligned) network. Each entry is named in a public investigation by at least one of: NewsGuard, Recorded Future, The Insider, gnidaproject, EDMO, Microsoft Threat Analysis Center, CivilNet, media.am, InFact, or Wikipedia. Lusaber's source-check uses this list as a high-confidence allowlist of *known fakes*; everything else is judged by Levenshtein-against-verified-outlets. We do NOT add speculative typosquats here — the registry is meant to be a list of fakes someone could vouch for. Pull requests adding entries must include a `source` URL.",
     "schema": {
-      "domain": "string — bare domain (no scheme, no path)",
-      "mimics": "string — real outlet the fake is impersonating",
+      "domain":     "string — bare host (no scheme, no path, lowercase)",
+      "mimics":     "string — outlet / entity it impersonates",
       "first_seen": "string — YYYY-MM",
-      "source": "string — attribution (URL or short citation)"
+      "source":     "string — public citation URL",
+      "category":   "string — armenia-targeted | storm-1516-network"
     },
-    "last_updated": "2026-05"
+    "last_updated": "2026-05",
+    "total_entries": 42
   },
   "domains": [
     {
       "domain": "armenpress-news.com",
       "mimics": "armenpress.am",
       "first_seen": "2024-03",
-      "source": "CivilNetCheck investigation — fake Armenpress clone"
+      "source": "CivilNetCheck investigation — fake Armenpress clone",
+      "category": "armenia-targeted"
     },
     {
       "domain": "azatutyun-news.com",
       "mimics": "azatutyun.am",
       "first_seen": "2024-06",
-      "source": "media.am fact-check — fake Azatutyun clone"
+      "source": "media.am fact-check — fake Azatutyun clone",
+      "category": "armenia-targeted"
     },
     {
       "domain": "courrier-france24.com",
       "mimics": "france24.com",
       "first_seen": "2023-11",
-      "source": "Storm-1516 / MTAC reporting — France24 impersonator"
+      "source": "Storm-1516 / MTAC reporting — France24 impersonator",
+      "category": "storm-1516-network"
     },
     {
       "domain": "reuters-breaking.net",
       "mimics": "reuters.com",
       "first_seen": "2024-01",
-      "source": "InFact Armenia — fake Reuters domain"
+      "source": "InFact Armenia — fake Reuters domain",
+      "category": "armenia-targeted"
     },
     {
       "domain": "bbc-armenian.net",
       "mimics": "bbc.com",
       "first_seen": "2024-08",
-      "source": "CivilNetCheck — fake BBC Armenian site"
+      "source": "CivilNetCheck — fake BBC Armenian site",
+      "category": "armenia-targeted"
     },
     {
       "domain": "bloomberg-armenia.com",
       "mimics": "bloomberg.com",
       "first_seen": "2025-02",
-      "source": "Storm-1516 campaign — Bloomberg impersonator targeting Armenia"
+      "source": "Storm-1516 campaign — Bloomberg impersonator targeting Armenia",
+      "category": "armenia-targeted"
+    },
+    {
+      "domain": "armenianinsider.am",
+      "mimics": "Armenian news outlet (fictional)",
+      "first_seen": "2025-09",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "armenia-targeted"
+    },
+    {
+      "domain": "dailyarmenia.am",
+      "mimics": "Armenian news outlet (fictional)",
+      "first_seen": "2025-10",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "armenia-targeted"
+    },
+    {
+      "domain": "armeniadaily.am",
+      "mimics": "Armenian news outlet (fictional)",
+      "first_seen": "2025-11",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "armenia-targeted"
+    },
+    {
+      "domain": "greenarmenia.org",
+      "mimics": "Armenian Green Party",
+      "first_seen": "2025-09",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "armenia-targeted"
+    },
+    {
+      "domain": "courrierfrance24.fr",
+      "mimics": "France 24",
+      "first_seen": "2025-06",
+      "source": "https://theins.press/en/news/282911",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "enquetedujour.fr",
+      "mimics": "Public (French outlet)",
+      "first_seen": "2025-07",
+      "source": "https://theins.press/en/news/282911",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "insider.eu.com",
+      "mimics": "Romania Insider (journalist impersonation)",
+      "first_seen": "2025-05",
+      "source": "https://theins.press/en/news/282911",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "partiroyaliste.fr",
+      "mimics": "French royalist political party",
+      "first_seen": "2024-08",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "veritecachee.fr",
+      "mimics": "French snap-elections messaging (fictional outlet)",
+      "first_seen": "2024-06",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "franceencolere.fr",
+      "mimics": "French snap-elections messaging (fictional outlet)",
+      "first_seen": "2024-06",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "newsguard.tech",
+      "mimics": "NewsGuard (parody / impersonator)",
+      "first_seen": "2025-03",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "tvfrance2.fr",
+      "mimics": "France Télévisions",
+      "first_seen": "2025-07",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "albertaseparatist.com",
+      "mimics": "Alberta independence movement (Canada)",
+      "first_seen": "2025-05",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "torontojournal.ca",
+      "mimics": "Canadian local news (fictional)",
+      "first_seen": "2024-07",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "timescanada.ca",
+      "mimics": "The Times of Canada (fictional)",
+      "first_seen": "2025-06",
+      "source": "https://theins.press/en/news/282911",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "clearstory.news",
+      "mimics": "Fictional US news outlet",
+      "first_seen": "2024-02",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "capitalcitydaily.com",
+      "mimics": "Fictional US local-news outlet",
+      "first_seen": "2025-03",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "usatimes.news",
+      "mimics": "Fictional US news outlet",
+      "first_seen": "2025-03",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "silvercitynews.com",
+      "mimics": "Fictional US local-news outlet",
+      "first_seen": "2025-03",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "wvalnews.com",
+      "mimics": "Fictional US local-news outlet",
+      "first_seen": "2025-03",
+      "source": "https://www.recordedfuture.com/research/copycop-deepens-its-playbook-with-new-websites-and-targets",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "allstatesnews.us",
+      "mimics": "Fictional US news outlet",
+      "first_seen": "2025-09",
+      "source": "https://www.theregister.com/2025/09/18/russian_fakenews_network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "fldaily.news",
+      "mimics": "Fictional Florida local-news outlet",
+      "first_seen": "2025-09",
+      "source": "https://www.theregister.com/2025/09/18/russian_fakenews_network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "dcweekly.org",
+      "mimics": "Fictional Washington DC outlet (Dougan network)",
+      "first_seen": "2023-11",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "chicagochron.com",
+      "mimics": "Fictional Chicago outlet (Dougan network)",
+      "first_seen": "2024-01",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "nynewsdaily.org",
+      "mimics": "Fictional New York outlet (Dougan network)",
+      "first_seen": "2024-03",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "bostontimes.org",
+      "mimics": "Fictional Boston outlet (Dougan network)",
+      "first_seen": "2024-03",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "sanfranchron.com",
+      "mimics": "Fictional San Francisco outlet (Dougan network)",
+      "first_seen": "2024-03",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "chicagocrier.com",
+      "mimics": "Fictional Chicago outlet (Dougan network)",
+      "first_seen": "2024-03",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "centralrecord.org",
+      "mimics": "Fictional US outlet (Dougan network)",
+      "first_seen": "2024-04",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "xposedem.com",
+      "mimics": "Fictional anti-Democrat US outlet (Dougan network)",
+      "first_seen": "2024-04",
+      "source": "https://www.newsguardtech.com/special-reports/john-mark-dougan-russian-disinformation-network/",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "restmedia.io",
+      "mimics": "REST Media (pro-Kremlin distribution node)",
+      "first_seen": "2025-10",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "restmedia.st",
+      "mimics": "REST Media (pro-Kremlin distribution node)",
+      "first_seen": "2025-10",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "fr-24.de",
+      "mimics": "Frankfurter Rundschau (German newspaper)",
+      "first_seen": "2025-09",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "sternplus.eu",
+      "mimics": "Stern (German magazine)",
+      "first_seen": "2025-11",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "brutinfo.fr",
+      "mimics": "Brut (French media outlet)",
+      "first_seen": "2025-10",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "storm-1516-network"
+    },
+    {
+      "domain": "dzalgerie.com",
+      "mimics": "Fictional Algerian news outlet",
+      "first_seen": "2025-10",
+      "source": "https://gnidaproject.substack.com/p/disinfo-update-rest-media-turbulence",
+      "category": "storm-1516-network"
     }
   ]
 }
